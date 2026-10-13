@@ -92,3 +92,35 @@ Ejecuté `java -cp out planificador.Main datos/verificacion.csv fcfs` y `... rr 
 ### 4.3 hueco.csv
 
 Entre los instantes 2 y 5 la CPU está ociosa: X termina en t=2 y Y y Z no llegan hasta t=5, así que no hay nada listo. En el diagrama esas tres casillas aparecen con un guion (`-`). En t=5 llegan Y y Z a la vez: FCFS y Round Robin cogen primero a Y (va antes en el fichero), mientras que SJF elige a Z porque su ráfaga es 1. La CPU ociosa también cuenta para los cambios de contexto: después del hueco entra un proceso distinto de X, y eso suma uno.
+
+## 5. Análisis y recomendación a NexoData (tarea 5)
+
+| nocturno.csv | Retorno medio | Espera media | Respuesta media | Cambios de contexto |
+|---|---|---|---|---|
+| FCFS | 14,00 | 10,00 | 10,00 | 5 |
+| SJF | 11,67 | 7,67 | 7,67 | 5 |
+| RR q=1 | 12,33 | 8,33 | 1,50 | 22 |
+| RR q=2 | 12,17 | 8,17 | 2,83 | 11 |
+| RR q=4 | 14,50 | 10,50 | 6,17 | 8 |
+
+**1. ¿Qué algoritmo da la menor espera media?** SJF, con 7,67 minutos frente a los 10,00 de FCFS. Pasa porque deja adelantarse a los trabajos cortos: LOGS (1 min), INFORME y AVISOS (2 min cada uno) salen enseguida, y el tiempo que ocupan los largos solo lo pagan unos pocos. Con SJF, LOGS acaba esperando 6 minutos y no 14.
+
+**2. LOGS en FCFS.** Espera 14 minutos para un trabajo de 1 minuto. Es el efecto convoy: los trabajos cortos se quedan atrapados detrás de uno largo. Quien lo provoca es FACTURA, que llega primero y ocupa la CPU 9 minutos seguidos, y después le siguen INFORME y BACKUP antes de que le toque a LOGS (que llega en el minuto 3 y no entra hasta el 17).
+
+**3. El peor parado en SJF.** BACKUP, con 16 minutos de espera y 22 de retorno, y es el último en terminar (minuto 24). Si cada pocos minutos llegaran trabajos cortos nuevos, siempre se colarían por delante y BACKUP podría no ejecutarse nunca. Ese problema se llama inanición (starvation) y se evita con el envejecimiento (aging): cuanto más tiempo lleva esperando un proceso, más prioridad gana, hasta que le toca.
+
+**4. Round Robin, de q=4 a q=1.** La respuesta media mejora mucho, de 6,17 a 1,50, porque todos llegan a la CPU enseguida. Pero los cambios de contexto se disparan de 8 a 22, casi uno por cada minuto de trabajo (24 en total). En mi simulador cambiar de proceso es gratis, pero en un sistema operativo de verdad no lo es: hay que guardar y restaurar registros, y se pierde parte de lo que había en caché. Además, los quantum reales son de milisegundos, no de un minuto entero, así que un quantum de 1 minuto no tendría sentido; el sistema acabaría perdiendo mucho tiempo en cambiar en vez de trabajar.
+
+**5. RR con q=4 frente a FCFS.** RR q=4 tiene espera media de 10,50 y FCFS de 10,00, es decir, ligeramente peor. Sorprende porque se supone que Round Robin reparte mejor la CPU. Pero con un quantum tan grande casi todos los trabajos caben en un turno o en dos, así que se parece a FCFS, y encima FACTURA pasa a esperar 15 minutos en vez de 0 porque la sacan de la CPU a los 4 minutos. Lo que ganan LOGS (14→7) e INFORME (8→3) no compensa lo que pierden FACTURA y BACKUP (0→15 y 9→15). Round Robin mejora la respuesta, no tiene por qué mejorar la espera media.
+
+**6. Por qué nunca hay Bloqueado.** Porque mis procesos solo gastan CPU: su ráfaga es CPU pura, sin pedir disco, red ni esperar a nada. Un proceso solo pasa a Bloqueado cuando espera algo externo (una E/S, un recurso), y eso no se simula aquí.
+
+![Estados en mi sistema](capturas/gestor-procesos.png)
+
+En la captura del Administrador de tareas (pestaña Detalles) todos los procesos que se ven aparecen como «En ejecución», pero fíjate en la columna CPU: casi todos están a 00. Windows llama «En ejecución» a cualquier proceso que está vivo, aunque en ese instante no tenga el procesador. Por eso su estado no se corresponde con mi EJECUCION, que solo lo tiene un proceso a la vez. La mayoría de estos serían en realidad procesos esperando algo, como Chrome o Discord esperando a que el usuario haga algo, y eso se parece más a mi BLOQUEADO. Windows tampoco enseña un estado «listo» ni «terminado» como el mío: un proceso que termina simplemente desaparece de la lista. En mi simulador no aparece nunca Bloqueado porque no simulo esperas de E/S, pero en un sistema real sí habría muchos.
+
+### Recomendación
+
+Para los trabajos nocturnos de NexoData recomiendo SJF. Son seis trabajos por lotes, nadie espera delante de la pantalla y sus duraciones se conocen de antemano (facturación 9 min, copia 6, logs 1...), así que lo que importa es acabar cuanto antes en media. Con SJF la espera media baja de 10,00 a 7,67 minutos y el retorno medio de 14,00 a 11,67, sin gastar nada extra en cambios de contexto (5, igual que FCFS). El problema es BACKUP, que acaba el último, en el minuto 24. Para que no se quede esperando eternamente si algún día llegan más trabajos cortos, habría que añadir envejecimiento.
+
+Si el servidor tuviera usuarios conectados, cambiaría de opinión y usaría Round Robin con quantum 2. Un usuario no quiere esperar 7 u 8 minutos a que le contesten, quiere una respuesta rápida, y ahí RR q=2 baja la respuesta media a 2,83 con solo 11 cambios de contexto. Es el punto medio entre q=1 (mejor respuesta pero 22 cambios) y q=4 (menos cambios pero peor en todo).
