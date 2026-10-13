@@ -30,3 +30,65 @@ Lo que más me preocupó fue no repetir el bucle de simulación tres veces, porq
 - `Planificador` es el bucle común. En cada instante hace siempre lo mismo y en este orden: entran los que llegan, se mira si el proceso de la CPU ha terminado o agotado el quantum, si la CPU está libre se elige otro, y se ejecuta una unidad. Ese orden es el que hace que se cumplan las reglas 3 y 4 del enunciado, así que no conviene cambiarlo.
 - `Fcfs` coge el primero de la cola. `Sjf` coge el de ráfaga más corta entre los ya llegados (empata por llegada y luego por orden en el fichero). `RoundRobin` coge el primero de la cola y agota el turno al llegar al quantum.
 - `Resultado` agrupa lo que sale de una simulación, `Informe` lo imprime y `Simulador` une todo desde `Main`, que no he tocado salvo para llamar a `Simulador`.
+
+## 4. Verificación (tarea 4)
+
+### 4.1 verificacion.csv resuelto con FCFS y Round Robin q=2
+
+Procesos: P1 (llega 0, ráfaga 6), P2 (1, 4), P3 (2, 2), P4 (4, 5) y P5 (6, 1). Fin = instante en que termina (última casilla + 1), retorno = fin − llegada, espera = retorno − ráfaga y respuesta = primer instante en CPU − llegada.
+
+**FCFS**
+
+| t | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| CPU | P1 | P1 | P1 | P1 | P1 | P1 | P2 | P2 | P2 | P2 | P3 | P3 | P4 | P4 | P4 | P4 | P4 | P5 |
+
+| Proceso | Llegada | Ráfaga | Fin | Retorno | Espera | Respuesta |
+|---|---|---|---|---|---|---|
+| P1 | 0 | 6 | 6 | 6 | 0 | 0 |
+| P2 | 1 | 4 | 10 | 9 | 5 | 5 |
+| P3 | 2 | 2 | 12 | 10 | 8 | 8 |
+| P4 | 4 | 5 | 17 | 13 | 8 | 8 |
+| P5 | 6 | 1 | 18 | 12 | 11 | 11 |
+
+Medias: retorno 10,00 · espera 6,40 · respuesta 6,40. Cambios de contexto: 4 (P1→P2, P2→P3, P3→P4, P4→P5; la primera carga no cuenta).
+
+**Round Robin, q = 2**
+
+| t | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| CPU | P1 | P1 | P2 | P2 | P3 | P3 | P1 | P1 | P4 | P4 | P2 | P2 | P5 | P1 | P1 | P4 | P4 | P4 |
+
+Cola de listos en cada instante en que el planificador decide (de primero a último, antes de elegir):
+
+| t | Qué ocurre | Cola de listos | Elige |
+|---|---|---|---|
+| 0 | Llega P1 | [P1] | P1 |
+| 2 | Llega P3 y P1 agota el quantum (el que llega entra antes que el desalojado) | [P2, P3, P1] | P2 |
+| 4 | Llega P4 y P2 agota el quantum | [P3, P1, P4, P2] | P3 |
+| 6 | Llega P5 y P3 termina | [P1, P4, P2, P5] | P1 |
+| 8 | P1 agota el quantum | [P4, P2, P5, P1] | P4 |
+| 10 | P4 agota el quantum | [P2, P5, P1, P4] | P2 |
+| 12 | P2 termina | [P5, P1, P4] | P5 |
+| 13 | P5 termina | [P1, P4] | P1 |
+| 15 | P1 termina | [P4] | P4 |
+
+En t = 17, P4 agota el quantum pero no hay nadie esperando, así que sigue con quantum nuevo y sin cambio de contexto.
+
+| Proceso | Llegada | Ráfaga | Fin | Retorno | Espera | Respuesta |
+|---|---|---|---|---|---|---|
+| P1 | 0 | 6 | 15 | 15 | 9 | 0 |
+| P2 | 1 | 4 | 12 | 11 | 7 | 1 |
+| P3 | 2 | 2 | 6 | 4 | 2 | 2 |
+| P4 | 4 | 5 | 18 | 14 | 9 | 4 |
+| P5 | 6 | 1 | 13 | 7 | 6 | 6 |
+
+Medias: retorno 10,20 · espera 6,60 · respuesta 2,60. Cambios de contexto: 8 (P1→P2→P3→P1→P4→P2→P5→P1→P4).
+
+### 4.2 Comparación con el programa
+
+Ejecuté `java -cp out planificador.Main datos/verificacion.csv fcfs` y `... rr 2 --traza` y comparé el Gantt, las métricas y los cambios de contexto con las tablas de arriba. Coinciden en los dos algoritmos.
+
+### 4.3 hueco.csv
+
+Entre los instantes 2 y 5 la CPU está ociosa: X termina en t=2 y Y y Z no llegan hasta t=5, así que no hay nada listo. En el diagrama esas tres casillas aparecen con un guion (`-`). En t=5 llegan Y y Z a la vez: FCFS y Round Robin cogen primero a Y (va antes en el fichero), mientras que SJF elige a Z porque su ráfaga es 1. La CPU ociosa también cuenta para los cambios de contexto: después del hueco entra un proceso distinto de X, y eso suma uno.
