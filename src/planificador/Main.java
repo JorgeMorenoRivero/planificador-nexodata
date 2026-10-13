@@ -44,11 +44,6 @@ public class Main {
             System.exit(1);
         }
 
-        System.out.println("Fichero: " + fichero + " | algoritmo: " + algoritmo
-                + " | quantum: " + quantum + " | traza: " + traza);
-
-        // TODO (tareas 1 a 3): a partir de aquí, lee los procesos del fichero,
-        // simula el algoritmo o algoritmos pedidos y muestra los resultados.
-        // Cuando lo tengas, borra el println de arriba y este comentario.
+        Simulador.ejecutar(fichero.toString(), algoritmo, quantum, traza);
     }
 }
